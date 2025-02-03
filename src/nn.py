@@ -1,7 +1,7 @@
 import numpy as np
 import cupy as cp
 from src.plot import Plot
-from src.kit import Activate
+from src.kit import Init, Activate
 
 def _verify(*args):
     for arg in args:
@@ -60,31 +60,31 @@ class FullConnectLayer:
         return self.dL_dx
 
 class ReluLayer(FullConnectLayer):
-    def __init__(self, input_size, output_size, initialize=None, l2_decay=0):
+    def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
         self.activation = Activate.relu
         self.derivative = Activate.relu_derivative
 
 class LeakyReluLayer(FullConnectLayer):
-    def __init__(self, input_size, output_size, initialize=None, l2_decay=0):
+    def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
         self.activation = Activate.leaky_relu
         self.derivative = Activate.leaky_relu_derivative
 
 class TanhLayer(FullConnectLayer):
-    def __init__(self, input_size, output_size, initialize=None, l2_decay=0):
+    def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
         self.activation = Activate.tanh
         self.derivative = Activate.tanh_derivative
 
 class LogitLayer(FullConnectLayer):
-    def __init__(self, input_size, output_size, initialize=None, l2_decay=0):
+    def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
         self.activation = Activate.identity
         self.derivative = Activate.identity_derivative
 
 class SoftmaxLayer(FullConnectLayer):
-    def __init__(self, input_size, output_size, initialize=None, l2_decay=0):
+    def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
         self.activation = Activate.softmax
         self.derivative = None

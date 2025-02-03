@@ -74,3 +74,6 @@ print(f"Test Accuracy: {accuracy:.2f}%")
 model.save("params.npz")
 model.load("params.npz")
 ```
+
+## License
+Licensed under MIT License
