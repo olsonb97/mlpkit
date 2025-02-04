@@ -18,7 +18,7 @@ def _convert(x, device):
             return x
     return device.array(x) # If neither
 
-class FullConnectLayer:
+class Layer:
     def __init__(self, input_size, output_size, initialize, l2_decay):
         self.input_size = input_size
         self.output_size = output_size
@@ -59,31 +59,31 @@ class FullConnectLayer:
 
         return self.dL_dx
 
-class ReluLayer(FullConnectLayer):
+class ReluLayer(Layer):
     def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
         self.activation = Activate.relu
         self.derivative = Activate.relu_derivative
 
-class LeakyReluLayer(FullConnectLayer):
+class LeakyReluLayer(Layer):
     def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
         self.activation = Activate.leaky_relu
         self.derivative = Activate.leaky_relu_derivative
 
-class TanhLayer(FullConnectLayer):
+class TanhLayer(Layer):
     def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
         self.activation = Activate.tanh
         self.derivative = Activate.tanh_derivative
 
-class LogitLayer(FullConnectLayer):
+class LogitLayer(Layer):
     def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
         self.activation = Activate.identity
         self.derivative = Activate.identity_derivative
 
-class SoftmaxLayer(FullConnectLayer):
+class SoftmaxLayer(Layer):
     def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
         self.activation = Activate.softmax
@@ -100,8 +100,8 @@ class MLP(Plot):
 
     def add_layer(self, layer):
         """Add's a layer to the model's layer stack"""
-        if not isinstance(layer, FullConnectLayer):
-            raise TypeError("MLP expected a FullConnectLayer type object!")
+        if not isinstance(layer, Layer):
+            raise TypeError("MLP expected a Layer type object!")
         if self.layers and layer.input_size != self.layers[-1].output_size:
             raise ValueError(f"Layer with input_size '{layer.input_size}' does not match previous layer's output size!")
         layer.device = self.device
@@ -125,7 +125,7 @@ class MLP(Plot):
         for layer in self.layers:
             x = layer.forward(x)
         return x
-    
+
     def backward_pass(self, dL_da, eta):
         for layer in reversed(self.layers):
             dL_da = layer.backward(dL_da, eta)
@@ -186,7 +186,7 @@ class MLP(Plot):
                     # Gradient descent
                     loss, dL_da = loss_func(pred_y, batch_y, gradient=True, device=self.device)
                     epoch_loss += loss / batches # Proportion the loss
-                    
+
                     # Backpropagate
                     self.backward_pass(dL_da, eta)
 
@@ -207,20 +207,20 @@ class MLP(Plot):
                 learning_rates=learning_rates
             )
             self.show()
-    
+
     def get_accuracy(self, predicted_labels, true_labels):
         """Returns an accuracy percentage between predicted and true labels"""
         _verify(predicted_labels, true_labels)
         predicted_labels = _convert(predicted_labels, self.device)
         true_labels = _convert(true_labels, self.device)
         return self.device.mean(predicted_labels == true_labels) * 100
-    
+
     def predict(self, dataset):
         """Returns a label prediction for given dataset"""
         _verify(dataset)
         probs = self.forward_pass(dataset)
         return self.device.argmax(probs, axis=1)
-    
+
     def test(self, dataset, labels):
         """Returns an accuracy percentage on given dataset and labels"""
         _verify(dataset, labels)
