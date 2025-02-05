@@ -41,18 +41,11 @@ class Activate:
         return xp.ones_like(x)
 
     def softmax(z, xp=None):
-        # Handle vectors and matrices
-        if z.ndim == 1:
-            z = z.reshape(1, -1)
-            vector = True
-        else:
-            vector = False
-
         stable_logits = z - xp.max(z, axis=1, keepdims=True)
         numerator = xp.exp(stable_logits)
         denominator = xp.sum(numerator, axis=1, keepdims=True)
         result = numerator / denominator
-        return result.flatten() if vector else result
+        return result
 
     def softmax_derivative(p, xp=None):
         # Not efficient. Best to avoid

@@ -4,19 +4,21 @@ from src.plot import Plot
 from src.kit import Init, Activate
 
 def _verify(*args):
+    """Verifies that args are of np or cp"""
     for arg in args:
         if not isinstance(arg, (np.ndarray, cp.ndarray)):
             raise ValueError(f"Expected datatype was an array! Instead got: {type(arg)}")
 
-def _convert(x, device):
+def _convert(x, xp):
+    """Converts array x to given np or cp"""
     if isinstance(x, (np.ndarray, cp.ndarray)):
-        if device is cp and isinstance(x, np.ndarray):
+        if xp is cp and isinstance(x, np.ndarray):
             return cp.asarray(x)
-        elif device is np and isinstance(x, cp.ndarray):
+        elif xp is np and isinstance(x, cp.ndarray):
             return x.get()
         else:
             return x
-    return device.array(x) # If neither
+    return xp.array(x) # If neither
 
 class Layer:
     def __init__(self, input_size, output_size, initialize, l2_decay):
@@ -24,31 +26,31 @@ class Layer:
         self.output_size = output_size
         self.initialize = initialize
         self.l2_decay = l2_decay
-    
+
     def forward(self, x):
-        x = _convert(x, self.device)
-        self.input_cache = self.device.array(x)
-        logits = self.device.matmul(self.input_cache, self.weights) + self.bias
-        return self.activation(logits, device=self.device)
-    
+        x = _convert(x, self.xp)
+        self.input_cache = self.xp.array(x)
+        logits = self.xp.matmul(self.input_cache, self.weights) + self.bias
+        return self.activation(logits, xp=self.xp)
+
     def backward(self, dL_da, learning_rate):
-        dL_da = _convert(dL_da, self.device)
+        dL_da = _convert(dL_da, self.xp)
         # Chain rule to find nested derivatives
-        logits = self.device.matmul(self.input_cache, self.weights) + self.bias
+        logits = self.xp.matmul(self.input_cache, self.weights) + self.bias
 
         # Get necessary derivatives
         if self.derivative is not None:
-            da_dz = self.derivative(logits, device=self.device)
+            da_dz = self.derivative(logits, xp=self.xp)
             dL_dz = dL_da * da_dz
         else: # Used when da_dz cancels out
             dL_dz = dL_da
 
         # Weight & Bias derivatives
-        dL_dw = self.device.matmul(self.input_cache.T, dL_dz)
-        dL_db = self.device.sum(dL_dz, axis=0)
+        dL_dw = self.xp.matmul(self.input_cache.T, dL_dz)
+        dL_db = self.xp.sum(dL_dz, axis=0)
 
         # Gradient to propagate backward
-        self.dL_dx = self.device.matmul(dL_dz, self.weights.T)
+        self.dL_dx = self.xp.matmul(dL_dz, self.weights.T)
 
         # L2 regularization
         dL_dw += self.l2_decay * self.weights
@@ -91,10 +93,10 @@ class SoftmaxLayer(Layer):
 
 class MLP(Plot):
     """Deep Learning Classification MLP"""
-    def __init__(self, device="cpu"):
-        if device not in ("cpu", "gpu"):
-            raise ValueError(f"Invalid device: '{device}'. Use 'cpu' or 'gpu'")
-        self.device = np if device == "cpu" else cp
+    def __init__(self, xp="cpu"):
+        if xp not in ("cpu", "gpu"):
+            raise ValueError(f"Invalid xp: '{xp}'. Use 'cpu' or 'gpu'")
+        self.xp = np if xp == "cpu" else cp
         super().__init__()
         self.layers = []
 
@@ -104,15 +106,15 @@ class MLP(Plot):
             raise TypeError("MLP expected a Layer type object!")
         if self.layers and layer.input_size != self.layers[-1].output_size:
             raise ValueError(f"Layer with input_size '{layer.input_size}' does not match previous layer's output size!")
-        layer.device = self.device
+        layer.xp = self.xp
         layer.weights = layer.initialize(
             input_size=layer.input_size,
             output_size=layer.output_size,
-            device=self.device
-        ).astype(self.device.float32)
-        layer.bias = self.device.zeros(
+            xp=self.xp
+        ).astype(self.xp.float32)
+        layer.bias = self.xp.zeros(
             shape=(layer.output_size,)
-        ).astype(self.device.float32)
+        ).astype(self.xp.float32)
         self.layers.append(layer)
 
     def del_layer(self, index=-1):
@@ -122,11 +124,13 @@ class MLP(Plot):
         self.layers.pop(index)
 
     def forward_pass(self, x):
+        """Predict input per layer"""
         for layer in self.layers:
             x = layer.forward(x)
         return x
 
     def backward_pass(self, dL_da, eta):
+        """Adjust weights per layer with derivatives"""
         for layer in reversed(self.layers):
             dL_da = layer.backward(dL_da, eta)
 
@@ -145,19 +149,23 @@ class MLP(Plot):
     ):
         """Adjusts weights and biases of the model's layers by training on labeled data"""
         try:
-            _verify(dataset, labels)
+            # Verify things
+            _verify(dataset, labels) # Check whether they are arrays
             if not self.layers:
                 raise RuntimeError("MLP has no layers!")
-            # Verify loss calculability
-            if self.layers[-1].device != self.device:
+            if self.layers[-1].xp != self.xp:
                 raise ValueError(
-                    f"Found mismatch in MLP device and output layer's device!" +
+                    f"Found mismatch in MLP xp and output layer's xp!" +
                     "\nThese two must match for proper loss calculations.")
+            if not dataset.ndim == 2:
+                raise ValueError(f"Dataset must be of '2' dimensions! Got: {dataset.ndim}")
+            if not labels.ndim == 1:
+                raise ValueError(f"Labels must be of '1' dimension! Got: {dataset.ndim}")
             # Initialize some things
-            dataset = _convert(dataset, self.device)
-            labels = _convert(labels, self.device)
+            dataset = _convert(dataset, self.xp)
+            labels = _convert(labels, self.xp)
             num_samples = dataset.shape[0]
-            one_hot = self.device.eye(len(self.device.unique(labels)))[labels]
+            one_hot = self.xp.eye(len(self.xp.unique(labels)))[labels]
             # np to make matplotlib easier
             losses = np.zeros(shape=(epochs,))
             learning_rates = np.zeros(shape=(epochs,))
@@ -166,7 +174,7 @@ class MLP(Plot):
             for epoch in range(epochs):
                 eta = learning_rate / (1 + decay_rate * epoch)
                 if shuffle:
-                    indices = self.device.random.permutation(num_samples)
+                    indices = self.xp.random.permutation(num_samples)
                     dataset, one_hot = dataset[indices], one_hot[indices]
 
                 batch_size = num_samples // batches
@@ -184,7 +192,7 @@ class MLP(Plot):
                     pred_y = self.forward_pass(batch_x)
 
                     # Gradient descent
-                    loss, dL_da = loss_func(pred_y, batch_y, gradient=True, device=self.device)
+                    loss, dL_da = loss_func(pred_y, batch_y, gradient=True, xp=self.xp)
                     epoch_loss += loss / batches # Proportion the loss
 
                     # Backpropagate
@@ -211,21 +219,21 @@ class MLP(Plot):
     def get_accuracy(self, predicted_labels, true_labels):
         """Returns an accuracy percentage between predicted and true labels"""
         _verify(predicted_labels, true_labels)
-        predicted_labels = _convert(predicted_labels, self.device)
-        true_labels = _convert(true_labels, self.device)
-        return self.device.mean(predicted_labels == true_labels) * 100
+        predicted_labels = _convert(predicted_labels, self.xp)
+        true_labels = _convert(true_labels, self.xp)
+        return self.xp.mean(predicted_labels == true_labels) * 100
 
     def predict(self, dataset):
         """Returns a label prediction for given dataset"""
         _verify(dataset)
         probs = self.forward_pass(dataset)
-        return self.device.argmax(probs, axis=1)
+        return self.xp.argmax(probs, axis=1)
 
     def test(self, dataset, labels):
         """Returns an accuracy percentage on given dataset and labels"""
         _verify(dataset, labels)
-        predicted_labels = self.forward_pass(dataset)
-        true_labels = _convert(labels, self.device)
+        predicted_labels = self.predict(dataset)
+        true_labels = _convert(labels, self.xp)
         return self.get_accuracy(predicted_labels, true_labels)
 
     def save(self, filename="params.npz"):
@@ -245,7 +253,7 @@ class MLP(Plot):
         for i, layer in enumerate(self.layers):
             weights = data[f"layer_{i}_weights"]
             biases = data[f"layer_{i}_bias"]
-            if layer.device is cp:
+            if layer.xp is cp:
                 layer.weights = cp.asarray(weights)
                 layer.bias = cp.asarray(biases)
             else:
