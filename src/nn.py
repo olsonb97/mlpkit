@@ -67,6 +67,12 @@ class ReluLayer(Layer):
         self.activation = Activate.relu
         self.derivative = Activate.relu_derivative
 
+class EluLayer(Layer):
+    def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
+        super().__init__(input_size, output_size, initialize, l2_decay)
+        self.activation = Activate.elu
+        self.derivative = Activate.elu_derivative
+
 class LeakyReluLayer(Layer):
     def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
         super().__init__(input_size, output_size, initialize, l2_decay)
@@ -129,10 +135,10 @@ class MLP(Plot):
             x = layer.forward(x)
         return x
 
-    def backward_pass(self, dL_da, eta):
+    def backward_pass(self, dL_da, learning_rate):
         """Adjust weights per layer with derivatives"""
         for layer in reversed(self.layers):
-            dL_da = layer.backward(dL_da, eta)
+            dL_da = layer.backward(dL_da, learning_rate)
 
     def train(
         self,
@@ -153,21 +159,19 @@ class MLP(Plot):
             _verify(dataset, labels) # Check whether they are arrays
             if not self.layers:
                 raise RuntimeError("MLP has no layers!")
-            if self.layers[-1].xp != self.xp:
-                raise ValueError(
-                    f"Found mismatch in MLP xp and output layer's xp!" +
-                    "\nThese two must match for proper loss calculations.")
             if not dataset.ndim == 2:
                 raise ValueError(f"Dataset must be of '2' dimensions! Got: {dataset.ndim}")
             if not labels.ndim == 1:
                 raise ValueError(f"Labels must be of '1' dimension! Got: {dataset.ndim}")
+            
             # Initialize some things
             dataset = _convert(dataset, self.xp)
             labels = _convert(labels, self.xp)
             num_samples = dataset.shape[0]
             one_hot = self.xp.eye(len(self.xp.unique(labels)))[labels]
             batch_size = num_samples // batches
-            # np for matplotlib easier
+
+            # Values for matplotlib (requires np)
             losses = np.empty(shape=(epochs,), dtype=np.float32)
             learning_rates = np.empty(shape=(epochs,), dtype=np.float32)
             weights = np.empty(shape=(epochs,), dtype=np.float32)
@@ -175,11 +179,10 @@ class MLP(Plot):
 
             # Iterate epochs
             for epoch in range(epochs):
-                eta = learning_rate / (1 + decay_rate * epoch)
+                learning_rate = learning_rate / (1 + decay_rate * epoch)
                 if shuffle:
                     indices = self.xp.random.permutation(num_samples)
                     dataset, one_hot = dataset[indices], one_hot[indices]
-
 
                 epoch_loss = 0 # Aggregate batch loss
 
@@ -199,11 +202,11 @@ class MLP(Plot):
                     epoch_loss += loss / batches # Proportion the loss
 
                     # Backpropagate
-                    self.backward_pass(dL_da, eta)
+                    self.backward_pass(dL_da, learning_rate)
 
                 # Track data
                 losses[epoch] = epoch_loss
-                learning_rates[epoch] = eta
+                learning_rates[epoch] = learning_rate
                 weights[epoch] = np.sum(sum(layer.weights.mean() for layer in self.layers))
                 biases[epoch] = np.sum(sum(layer.biases.mean() for layer in self.layers))
 
@@ -215,12 +218,13 @@ class MLP(Plot):
 
         if plot:
             self.plot_training(
-                losses=losses,
                 epochs=epochs,
+                losses=losses,
                 learning_rates=learning_rates,
                 weights=weights,
                 biases=biases
             )
+            self.show()
 
     def get_accuracy(self, predicted_labels, true_labels):
         """Returns an accuracy percentage between predicted and true labels"""

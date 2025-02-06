@@ -36,7 +36,7 @@ from nn import MLP, ReluLayer, SoftmaxLayer
 from kit import Init, Loss
 
 # Initialize model
-model = MLP(device="gpu")
+model = MLP("gpu")
 
 # Add layers
 model.add_layer(

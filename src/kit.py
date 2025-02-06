@@ -27,6 +27,12 @@ class Activate:
 
     def leaky_relu_derivative(x, alpha=0.01, xp=None):
         return xp.where(x > 0, 1, alpha)
+    
+    def elu(x, alpha=1.0, xp=None):
+        return xp.where(x > 0, x, alpha * (xp.exp(x) - 1))
+    
+    def elu_derivatiave(x, alpha=1.0, xp=None):
+        return xp.where(x > 0, 1, Activate.elu(x, alpha) + alpha)
 
     def tanh(x, xp=None):
         return xp.tanh(x)
