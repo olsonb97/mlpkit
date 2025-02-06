@@ -3,10 +3,10 @@ import cupy as cp
 from src.plot import Plot
 from src.kit import Init, Activate
 
-def _verify(*args):
-    """Verifies that args are of np or cp"""
+def _verify(*args, xp=None):
+    """Verifies that args are of a certain array type"""
     for arg in args:
-        if not isinstance(arg, (np.ndarray, cp.ndarray)):
+        if not isinstance(arg, xp.ndarray):
             raise ValueError(f"Expected datatype was an array! Instead got: {type(arg)}")
 
 def _convert(x, xp):
@@ -156,7 +156,7 @@ class MLP(Plot):
         """Adjusts weights and biases of the model's layers by training on labeled data"""
         try:
             # Verify things
-            _verify(dataset, labels) # Check whether they are arrays
+            _verify(dataset, labels, xp=self.xp) # Check whether they are arrays
             if not self.layers:
                 raise RuntimeError("MLP has no layers!")
             if not dataset.ndim == 2:
@@ -228,20 +228,20 @@ class MLP(Plot):
 
     def get_accuracy(self, predicted_labels, true_labels):
         """Returns an accuracy percentage between predicted and true labels"""
-        _verify(predicted_labels, true_labels)
+        _verify(predicted_labels, true_labels, xp=self.xp)
         predicted_labels = _convert(predicted_labels, self.xp)
         true_labels = _convert(true_labels, self.xp)
         return self.xp.mean(predicted_labels == true_labels) * 100
 
     def predict(self, dataset):
         """Returns a label prediction for given dataset"""
-        _verify(dataset)
+        _verify(dataset, xp=self.xp)
         probs = self.forward_pass(dataset)
         return self.xp.argmax(probs, axis=1)
 
     def test(self, dataset, labels):
         """Returns an accuracy percentage on given dataset and labels"""
-        _verify(dataset, labels)
+        _verify(dataset, labels, xp=self.xp)
         predicted_labels = self.predict(dataset)
         true_labels = _convert(labels, self.xp)
         return self.get_accuracy(predicted_labels, true_labels)

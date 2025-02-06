@@ -31,8 +31,8 @@ class Activate:
     def elu(x, alpha=1.0, xp=None):
         return xp.where(x > 0, x, alpha * (xp.exp(x) - 1))
     
-    def elu_derivatiave(x, alpha=1.0, xp=None):
-        return xp.where(x > 0, 1, Activate.elu(x, alpha) + alpha)
+    def elu_derivative(x, alpha=1.0, xp=None):
+        return xp.where(x > 0, 1, Activate.elu(x, alpha, xp) + alpha)
 
     def tanh(x, xp=None):
         return xp.tanh(x)
