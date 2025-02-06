@@ -30,13 +30,13 @@ class Layer:
     def forward(self, x):
         x = _convert(x, self.xp)
         self.input_cache = self.xp.array(x)
-        logits = self.xp.matmul(self.input_cache, self.weights) + self.bias
+        logits = self.xp.matmul(self.input_cache, self.weights) + self.biases
         return self.activation(logits, xp=self.xp)
 
     def backward(self, dL_da, learning_rate):
         dL_da = _convert(dL_da, self.xp)
         # Chain rule to find nested derivatives
-        logits = self.xp.matmul(self.input_cache, self.weights) + self.bias
+        logits = self.xp.matmul(self.input_cache, self.weights) + self.biases
 
         # Get necessary derivatives
         if self.derivative is not None:
@@ -50,16 +50,16 @@ class Layer:
         dL_db = self.xp.sum(dL_dz, axis=0)
 
         # Gradient to propagate backward
-        self.dL_dx = self.xp.matmul(dL_dz, self.weights.T)
+        dL_dx = self.xp.matmul(dL_dz, self.weights.T)
 
         # L2 regularization
         dL_dw += self.l2_decay * self.weights
 
         # Update weights and biases
         self.weights -= learning_rate * dL_dw
-        self.bias -= learning_rate * dL_db
+        self.biases -= learning_rate * dL_db
 
-        return self.dL_dx
+        return dL_dx
 
 class ReluLayer(Layer):
     def __init__(self, input_size, output_size, initialize=Init.basic, l2_decay=0):
@@ -112,7 +112,7 @@ class MLP(Plot):
             output_size=layer.output_size,
             xp=self.xp
         ).astype(self.xp.float32)
-        layer.bias = self.xp.zeros(
+        layer.biases = self.xp.zeros(
             shape=(layer.output_size,)
         ).astype(self.xp.float32)
         self.layers.append(layer)
@@ -166,9 +166,12 @@ class MLP(Plot):
             labels = _convert(labels, self.xp)
             num_samples = dataset.shape[0]
             one_hot = self.xp.eye(len(self.xp.unique(labels)))[labels]
-            # np to make matplotlib easier
-            losses = np.zeros(shape=(epochs,))
-            learning_rates = np.zeros(shape=(epochs,))
+            batch_size = num_samples // batches
+            # np for matplotlib easier
+            losses = np.empty(shape=(epochs,), dtype=np.float32)
+            learning_rates = np.empty(shape=(epochs,), dtype=np.float32)
+            weights = np.empty(shape=(epochs,), dtype=np.float32)
+            biases = np.empty(shape=(epochs,), dtype=np.float32)
 
             # Iterate epochs
             for epoch in range(epochs):
@@ -177,7 +180,7 @@ class MLP(Plot):
                     indices = self.xp.random.permutation(num_samples)
                     dataset, one_hot = dataset[indices], one_hot[indices]
 
-                batch_size = num_samples // batches
+
                 epoch_loss = 0 # Aggregate batch loss
 
                 # Iterate batches
@@ -201,6 +204,8 @@ class MLP(Plot):
                 # Track data
                 losses[epoch] = epoch_loss
                 learning_rates[epoch] = eta
+                weights[epoch] = np.sum(sum(layer.weights.mean() for layer in self.layers))
+                biases[epoch] = np.sum(sum(layer.biases.mean() for layer in self.layers))
 
                 if print_interval and epoch % print_interval == 0:
                     print(f"Epoch {epoch+1}/{epochs}: Loss = {epoch_loss:.8f}")
@@ -212,9 +217,10 @@ class MLP(Plot):
             self.plot_training(
                 losses=losses,
                 epochs=epochs,
-                learning_rates=learning_rates
+                learning_rates=learning_rates,
+                weights=weights,
+                biases=biases
             )
-            self.show()
 
     def get_accuracy(self, predicted_labels, true_labels):
         """Returns an accuracy percentage between predicted and true labels"""
@@ -242,9 +248,9 @@ class MLP(Plot):
         for i, layer in enumerate(self.layers):
             # Convert all to numpy
             w = _convert(layer.weights, np)
-            b = _convert(layer.bias, np)
+            b = _convert(layer.biases, np)
             params[f"layer_{i}_weights"] = w
-            params[f"layer_{i}_bias"] = b
+            params[f"layer_{i}_biases"] = b
         np.savez(filename, **params)
 
     def load(self, filename="params.npz"):
@@ -252,10 +258,10 @@ class MLP(Plot):
         data = np.load(filename)
         for i, layer in enumerate(self.layers):
             weights = data[f"layer_{i}_weights"]
-            biases = data[f"layer_{i}_bias"]
+            biases = data[f"layer_{i}_biases"]
             if layer.xp is cp:
                 layer.weights = cp.asarray(weights)
-                layer.bias = cp.asarray(biases)
+                layer.biases = cp.asarray(biases)
             else:
                 layer.weights = weights
-                layer.bias = biases
+                layer.biases = biases
