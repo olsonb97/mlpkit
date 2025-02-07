@@ -4,3 +4,7 @@ test_package_sml.npz
 train_package.npz
 train_package_sml.npz
 testing.py
+test_iris_data.npy
+test_iris_labels.npy
+train_iris_data.npy
+train_iris_labels.npy
