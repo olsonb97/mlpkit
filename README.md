@@ -2,7 +2,7 @@
 
 ![Demo of mlpkit graphs](res/demo.gif)
 
-This is a simple machine learning kit designed to make tinkering with neural network concepts easy and approachable. Key goals of this project are to abstract the math, and modularize the neural network building process, while keeping the building process explicit enough to experiment with. This is pretty much **only** for tinkering and education, as it uses manual differentiation and is not designed for efficiency. Pytorch or Tinygrad will suit actual projects much better.
+This is a simple machine learning kit designed to make tinkering with Multilayer Perceptron concepts approachable. Key goals of this project are to abstract the math, and modularize the neural network building process, while keeping the building process explicit enough to experiment with. This is pretty much **only** for tinkering and education, as it uses manual differentiation and is not designed for efficiency. Pytorch or Tinygrad will suit actual projects much better.
 
 **Only MLP classification tasks are supported. There is no support for unsupervised learning, CNNs, etc.**
 
