@@ -59,7 +59,7 @@ class Plot:
             scatter._offsets3d = (x_data, y_data, z_data)
             return line, scatter
 
-        return FuncAnimation(self.fig, update, frames=range(len(losses)), interval=1, blit=False, repeat=False)
+        return FuncAnimation(self.fig, update, frames=range(len(losses)), interval=100, blit=False, repeat=False)
 
     def plot_training(self, epochs, losses, learning_rates, weights, biases):
         epochs = range(1, epochs+1)
