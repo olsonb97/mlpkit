@@ -1,6 +1,6 @@
-# nnkit
+# mlpkit
 
-![Demo of nnkit graphs](res/demo.gif)
+![Demo of mlpkit graphs](res/demo.gif)
 
 This is a simple machine learning kit designed to make tinkering with neural network concepts easy and approachable. Key goals of this project are to abstract the math, and modularize the neural network building process, while keeping the building process explicit enough to experiment with. This is pretty much **only** for tinkering and education, as it uses manual differentiation and is not designed for efficiency. Pytorch or Tinygrad will suit actual projects much better.
 
@@ -17,7 +17,7 @@ This is a simple machine learning kit designed to make tinkering with neural net
 
 ## Installation
 
-nnkit requires Python and these dependencies:
+mlpkit requires Python and these dependencies:
 
 - `numpy` (for matrix operations)
 - `cupy` (for GPU acceleration)
@@ -34,7 +34,7 @@ pip install numpy cupy matplotlib
 ### Creating a Model
 
 ```python
-from nn import MLP, ReluLayer, SoftmaxLayer
+from mlp import MLP, ReluLayer, SoftmaxLayer
 from kit import Init, Loss
 
 # Initialize model
